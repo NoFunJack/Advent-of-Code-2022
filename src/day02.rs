@@ -20,6 +20,7 @@ impl Round2 {
     }
 }
 
+#[derive(PartialEq)]
 pub enum Shape {
     Rock,
     Paper,
@@ -58,6 +59,10 @@ pub enum Outcome {
     Win,
 }
 
+const WIN: i32 = 6;
+const DRAW: i32 = 3;
+const LOSE: i32 = 0;
+
 pub fn read_input_part1(input: &str) -> Vec<Round1> {
     return input
         .lines()
@@ -69,15 +74,6 @@ pub fn read_input_part1(input: &str) -> Vec<Round1> {
             }
         })
         .collect();
-
-    fn map_opp(c: char) -> Shape {
-        match c {
-            'A' => Shape::Rock,
-            'B' => Shape::Paper,
-            'C' => Shape::Scissors,
-            _ => panic!("unkown shape {}", c),
-        }
-    }
 
     fn map_me(c: char) -> Shape {
         match c {
@@ -100,15 +96,6 @@ pub fn read_input_part2(input: &str) -> Vec<Round2> {
             }
         })
         .collect();
-
-    fn map_opp(c: char) -> Shape {
-        match c {
-            'A' => Shape::Rock,
-            'B' => Shape::Paper,
-            'C' => Shape::Scissors,
-            _ => panic!("unkown shape {}", c),
-        }
-    }
 
     fn map_outcome(c: char) -> Outcome {
         match c {
@@ -141,26 +128,21 @@ fn part2(input: &str) -> i32 {
 }
 
 fn match_points(opp: &Shape, me: &Shape) -> i32 {
-    let win = 6;
-    let draw = 3;
-    let lose = 0;
+    if me.loses_to() == *opp {
+        LOSE
+    } else if me.beats() == *opp {
+        WIN
+    } else {
+        DRAW
+    }
+}
 
-    match opp {
-        Shape::Rock => match me {
-            Shape::Rock => draw,
-            Shape::Paper => win,
-            Shape::Scissors => lose,
-        },
-        Shape::Paper => match me {
-            Shape::Rock => lose,
-            Shape::Paper => draw,
-            Shape::Scissors => win,
-        },
-        Shape::Scissors => match me {
-            Shape::Rock => win,
-            Shape::Paper => lose,
-            Shape::Scissors => draw,
-        },
+fn map_opp(c: char) -> Shape {
+    match c {
+        'A' => Shape::Rock,
+        'B' => Shape::Paper,
+        'C' => Shape::Scissors,
+        _ => panic!("unkown shape {}", c),
     }
 }
 

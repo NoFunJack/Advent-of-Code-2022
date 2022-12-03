@@ -8,8 +8,20 @@ fn part1(input: &str) -> u32 {
 }
 
 #[aoc(day3, part2)]
-fn part2(input: &str) -> i32 {
-    0
+fn part2(input: &str) -> u32 {
+    let mut lines = input.lines().peekable();
+    let mut sum = 0;
+
+    while lines.peek().is_some() {
+        let common = find_common3(
+            lines.next().unwrap(),
+            lines.next().unwrap(),
+            lines.next().unwrap(),
+        );
+        sum += prio(common);
+    }
+
+    sum
 }
 
 fn prio(c: char) -> u32 {
@@ -23,6 +35,12 @@ fn prio(c: char) -> u32 {
 fn find_common(p1: &str, p2: &str) -> char {
     p1.chars()
         .find(|c| p2.contains(|t| t == *c))
+        .expect("No common letter found")
+}
+
+fn find_common3(p1: &str, p2: &str, p3: &str) -> char {
+    p1.chars()
+        .find(|c| p2.contains(|t| t == *c) && p3.contains(|t| t == *c))
         .expect("No common letter found")
 }
 
@@ -40,6 +58,11 @@ CrZsJsPPZsGzwwsLwLmpwMDw";
     #[test]
     fn part1_test() {
         assert_eq!(part1(EXAMPLE), 157)
+    }
+
+    #[test]
+    fn part2_test() {
+        assert_eq!(part2(EXAMPLE), 70)
     }
 
     #[test]

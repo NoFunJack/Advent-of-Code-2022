@@ -78,13 +78,13 @@ fn part1(input: &[Work]) -> usize {
 }
 
 #[aoc(day4, part2)]
-fn part2(input: &[Work]) -> i32 {
-    0
+fn part2(input: &[Work]) -> usize {
+    input.iter().filter(|w| w.common_work().is_some()).count()
 }
 
 #[cfg(test)]
 mod test {
-    use super::{input_generator, part1, Intervall};
+    use super::*;
 
     static EXAMPLE: &str = "2-4,6-8
 2-3,4-5
@@ -96,6 +96,11 @@ mod test {
     #[test]
     fn test_part1() {
         assert_eq!(part1(&input_generator(EXAMPLE)), 2)
+    }
+
+    #[test]
+    fn test_part2() {
+        assert_eq!(part2(&input_generator(EXAMPLE)), 4)
     }
 
     #[test]

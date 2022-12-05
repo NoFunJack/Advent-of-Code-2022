@@ -80,10 +80,12 @@ pub struct Instr {
     to: usize,
 }
 
+lazy_static::lazy_static! {
+    static ref MOVE_REGEX: Regex = Regex::new(r"move (\d+) from (\d+) to (\d+)").unwrap();
+}
 impl Instr {
     fn new(input: &str) -> Instr {
-        let move_regex: Regex = Regex::new(r"move (\d+) from (\d+) to (\d+)").unwrap();
-        let caps = move_regex.captures(input).unwrap();
+        let caps = MOVE_REGEX.captures(input).unwrap();
 
         Instr {
             amount: caps.get(1).map(|s| s.as_str().parse().unwrap()).unwrap(),

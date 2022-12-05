@@ -44,6 +44,27 @@ impl Store {
         }
     }
 
+    fn apply_9001(&mut self, instr: Instr) {
+        let mut moving = Vec::new();
+
+        for _ in 0..instr.amount {
+            //println!("{:?}\n step: {:?}", self.stacks, instr);
+
+            let id = self
+                .stacks
+                .get_mut(instr.from - 1)
+                .expect("no Stack")
+                .pop()
+                .expect("stack empty");
+
+            moving.push(id);
+        }
+
+        for id in moving.iter().rev() {
+            self.stacks.get_mut(instr.to - 1).unwrap().push(*id);
+        }
+    }
+
     fn read_top(&self) -> String {
         self.stacks
             .iter()
@@ -95,8 +116,14 @@ fn part1(input: &str) -> String {
 }
 
 #[aoc(day5, part2)]
-fn part2(input: &str) -> u32 {
-    0
+fn part2(input: &str) -> String {
+    let (mut store, prog) = load_data(input);
+
+    for instr in prog {
+        store.apply_9001(instr);
+    }
+
+    store.read_top()
 }
 
 #[cfg(test)]
@@ -120,7 +147,7 @@ move 1 from 1 to 2";
 
     #[test]
     fn part2_test() {
-        assert_eq!(part2(EXAMPLE), 70)
+        assert_eq!(part2(EXAMPLE), "MCD")
     }
 
     #[test]

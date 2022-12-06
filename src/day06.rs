@@ -3,28 +3,19 @@ use std::iter::Cycle;
 #[derive(Debug)]
 struct Buffer {
     content: [char; 14],
-    indx: Cycle<std::slice::Iter<'static, usize>>,
+    indx: Cycle<CountTill>,
 }
 
 impl Buffer {
     fn new(size: usize) -> Self {
-        match size {
-            4 => Self {
-                content: ['\0'; 14],
-                indx: [0, 1, 2, 3].iter().cycle(),
-            },
-            14 => Self {
-                content: ['\0'; 14],
-                indx: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
-                    .iter()
-                    .cycle(),
-            },
-            _ => panic!("unknown size"),
+        Self {
+            content: ['\0'; 14],
+            indx: CountTill::new(size).cycle(),
         }
     }
 
     fn add(&mut self, c: char) {
-        self.content[*self.indx.next().unwrap()] = c;
+        self.content[self.indx.next().unwrap()] = c;
     }
 
     fn has_dublicate(&self) -> bool {
@@ -36,6 +27,32 @@ impl Buffer {
                 .count()
                 > 1
         })
+    }
+}
+
+#[derive(Clone, Debug)]
+struct CountTill {
+    max: usize,
+    pos: usize,
+}
+
+impl CountTill {
+    fn new(max: usize) -> Self {
+        Self { max, pos: 0 }
+    }
+}
+
+impl Iterator for CountTill {
+    type Item = usize;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.pos == self.max {
+            None
+        } else {
+            let cur = self.pos;
+            self.pos += 1;
+            Some(cur)
+        }
     }
 }
 

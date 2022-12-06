@@ -58,12 +58,12 @@ impl Iterator for CountTill {
     }
 }
 
-#[aoc(day6, part1)]
+#[aoc(day6, part1, ringbuff)]
 fn part1(input: &str) -> usize {
     find_idx(input, 4)
 }
 
-#[aoc(day6, part2)]
+#[aoc(day6, part2, ringbuff)]
 fn part2(input: &str) -> usize {
     find_idx(input, 14)
 }
@@ -76,6 +76,32 @@ fn find_idx(input: &str, scan_size: usize) -> usize {
             return idx + 1;
         }
     }
+    panic!("No match found")
+}
+
+#[aoc(day6, part1, range)]
+fn part1_range(input: &str) -> usize {
+    find_idx_inter(input, 4)
+}
+
+#[aoc(day6, part2, range)]
+fn part2_range(input: &str) -> usize {
+    find_idx_inter(input, 14)
+}
+
+fn find_idx_inter(input: &str, scan_size: usize) -> usize {
+    let mut pos = 0;
+    while pos < input.len() {
+        let scan = &input[pos..pos + scan_size];
+        if scan
+            .chars()
+            .all(|c| scan.chars().filter(|d| *d == c).count() == 1)
+        {
+            return pos + scan_size;
+        }
+        pos += 1;
+    }
+
     panic!("No match found")
 }
 
@@ -105,6 +131,24 @@ mod test {
         assert_eq!(part2(EXAMPLE3), 23);
         assert_eq!(part2(EXAMPLE4), 29);
         assert_eq!(part2(EXAMPLE5), 26);
+    }
+
+    #[test]
+    fn part1_range_test() {
+        assert_eq!(part1_range(EXAMPLE1), 7);
+        assert_eq!(part1_range(EXAMPLE2), 5);
+        assert_eq!(part1_range(EXAMPLE3), 6);
+        assert_eq!(part1_range(EXAMPLE4), 10);
+        assert_eq!(part1_range(EXAMPLE5), 11);
+    }
+
+    #[test]
+    fn part2_range_test() {
+        assert_eq!(part2_range(EXAMPLE1), 19);
+        assert_eq!(part2_range(EXAMPLE2), 23);
+        assert_eq!(part2_range(EXAMPLE3), 23);
+        assert_eq!(part2_range(EXAMPLE4), 29);
+        assert_eq!(part2_range(EXAMPLE5), 26);
     }
 
     #[test]

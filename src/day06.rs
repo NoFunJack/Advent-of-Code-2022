@@ -4,6 +4,7 @@ use std::iter::Cycle;
 struct Buffer {
     content: [char; 14],
     indx: Cycle<CountTill>,
+    size: usize,
 }
 
 impl Buffer {
@@ -11,6 +12,7 @@ impl Buffer {
         Self {
             content: ['\0'; 14],
             indx: CountTill::new(size).cycle(),
+            size,
         }
     }
 
@@ -22,6 +24,7 @@ impl Buffer {
         self.content.iter().any(|c| {
             self.content
                 .iter()
+                .take(self.size)
                 .filter(|d| **d != '\0')
                 .filter(|d| *d == c)
                 .count()

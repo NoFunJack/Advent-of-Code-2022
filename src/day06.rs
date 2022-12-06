@@ -22,9 +22,8 @@ impl Buffer {
 
     fn has_dublicate(&self) -> bool {
         self.content.iter().any(|c| {
-            self.content
+            self.content[..self.size]
                 .iter()
-                .take(self.size)
                 .filter(|d| **d != '\0')
                 .filter(|d| *d == c)
                 .count()

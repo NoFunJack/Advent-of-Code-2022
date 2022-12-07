@@ -1,40 +1,71 @@
-use std::cell::RefCell;
 use std::collections::BTreeMap;
-use std::rc::Rc;
+use std::collections::BTreeSet;
 
 #[derive(Debug, PartialEq)]
-struct Dir {
-    subdirs: BTreeMap<String, Rc<RefCell<Dir>>>,
-    files: Vec<File>,
-    partent: Option<Rc<RefCell<Dir>>>,
+struct Filesystem<'a> {
+    files: BTreeMap<Vec<&'a str>, File>,
 }
 
-impl Dir {
-    fn new(input: &str) -> Rc<RefCell<Dir>> {
-        let mut root = Dir {
-            subdirs: BTreeMap::new(),
-            files: Vec::new(),
-            partent: None,
-        };
+impl<'a> Filesystem<'a> {
+    fn new(input: &'a str) -> Self {
+        let mut lines = input.lines().peekable();
 
-        let root_rc = Rc::new(RefCell::new(root));
-        {
-            let mut cwd = Rc::clone(&root_rc);
-            let mut stdIn = input.lines().peekable();
-            while stdIn.peek().is_some() {
-                let cmd = Command::new(stdIn.next().unwrap());
-                match cmd {
-                    Command::Cd(p) => match p.as_str() {
-                        "/" => cwd = Rc::clone(&root_rc),
-                        ".." => cwd = (*cwd).borrow_mut().partent.unwrap(),
-                        _ => cwd = todo!(),
-                    },
-                    Command::Ls => todo!(),
+        let mut fs = Filesystem {
+            files: BTreeMap::new(),
+        };
+        let mut cwd_path: Vec<&str> = vec![];
+
+        while lines.peek().is_some() {
+            let cmd = Command::new(lines.next().unwrap());
+            match cmd {
+                Command::Cd(p) => match p {
+                    "/" => cwd_path = vec![],
+                    ".." => {
+                        cwd_path.pop();
+                    }
+                    _ => cwd_path.push(&p.clone()),
+                },
+                Command::Ls => {
+                    while lines.peek().is_some() && !lines.peek().unwrap().starts_with("$") {
+                        let line = lines.next().unwrap();
+                        if !line.starts_with("dir") {
+                            let mut words = line.split_whitespace();
+                            let size: usize = words.next().unwrap().parse().unwrap();
+                            let mut fp = cwd_path.clone();
+                            fp.push(words.next().unwrap());
+                            fs.files.insert(fp, File::new(size));
+                        }
+                    }
                 }
             }
         }
 
-        root_rc
+        fs
+    }
+
+    fn get_folder_sizes(&self) -> Vec<(String, usize)> {
+        let mut checked_folders = BTreeSet::new();
+        let mut re = Vec::new();
+        for path in self.files.keys() {
+            let mut p_str = Vec::new();
+            // ignore file part of path
+            for folder in path.iter().take(path.len() - 1) {
+                p_str.push(folder.clone());
+                if !checked_folders.contains(&p_str) {
+                    checked_folders.insert(p_str.clone());
+
+                    let sum_size = self
+                        .files
+                        .iter()
+                        .filter(|(k, _)| k.len() >= p_str.len() && k[0..p_str.len()] == p_str)
+                        .map(|(_, v)| v.size)
+                        .sum();
+
+                    re.push((p_str.join("/"), sum_size));
+                }
+            }
+        }
+        re
     }
 }
 
@@ -49,21 +80,20 @@ impl File {
     }
 }
 
-enum Command {
-    Cd(String),
+enum Command<'a> {
+    Cd(&'a str),
     Ls,
 }
 
-impl Command {
+impl<'a> Command<'a> {
     fn new(line: &str) -> Command {
-        println!("building cmd from line  {}", line);
         if !line.starts_with("$") {
             panic!("Line is not a command");
         }
 
         let mut words = line.split_whitespace().skip(1);
         match words.next().unwrap() {
-            "cd" => Command::Cd(words.next().unwrap().to_string()),
+            "cd" => Command::Cd(words.next().unwrap()),
             "ls" => Command::Ls,
             _ => panic!("unknown command"),
         }
@@ -71,13 +101,29 @@ impl Command {
 }
 
 #[aoc(day7, part1)]
-fn part1(input: &str) -> u32 {
-    0
+fn part1(input: &str) -> usize {
+    let fs = Filesystem::new(input);
+
+    fs.get_folder_sizes()
+        .iter()
+        .map(|(n, s)| s)
+        .filter(|s| **s < 100000)
+        .sum()
 }
 
 #[aoc(day7, part2)]
-fn part2(input: &str) -> u32 {
-    0
+fn part2(input: &str) -> usize {
+    let fs = Filesystem::new(input);
+    let folder_sizes = fs.get_folder_sizes();
+    let used_space: usize = fs.files.values().map(|f| f.size).sum();
+
+    let min_delete = used_space - (70000000 - 30000000);
+    folder_sizes
+        .iter()
+        .map(|(_, s)| *s)
+        .filter(|s| *s >= min_delete)
+        .min()
+        .unwrap()
 }
 
 #[cfg(test)]
@@ -115,56 +161,39 @@ $ ls
 
     #[test]
     fn part2_test() {
-        assert_eq!(part2(EXAMPLE), 70)
+        assert_eq!(part2(EXAMPLE), 24933642)
     }
 
     #[test]
     fn test_read_fs() {
-        let fs = Dir::new(EXAMPLE);
+        let fs = Filesystem::new(EXAMPLE);
 
-        let ref_e = Rc::new(RefCell::new(Dir {
-            subdirs: BTreeMap::new(),
-            files: vec![File::new(584)],
-            partent: None,
-        }));
-
-        let ref_a = Rc::new(RefCell::new(Dir {
-            subdirs: {
-                let mut d = BTreeMap::new();
-                d.insert("e".to_string(), Rc::clone(&ref_e));
-                d
+        let exp = Filesystem {
+            files: {
+                let mut f = BTreeMap::new();
+                f.insert(vec!["a", "e", "i"], File::new(584));
+                f.insert(vec!["a", "f"], File::new(29116));
+                f.insert(vec!["a", "g"], File::new(2557));
+                f.insert(vec!["a", "h.lst"], File::new(62596));
+                f.insert(vec!["b.txt"], File::new(14848514));
+                f.insert(vec!["c.dat"], File::new(8504156));
+                f.insert(vec!["d", "j"], File::new(4060174));
+                f.insert(vec!["d", "d.log"], File::new(8033020));
+                f.insert(vec!["d", "d.ext"], File::new(5626152));
+                f.insert(vec!["d", "k"], File::new(7214296));
+                f
             },
-            files: vec![File::new(29116), File::new(2557), File::new(62596)],
-            partent: None,
-        }));
+        };
 
-        (*ref_e).borrow_mut().partent = Some(Rc::clone(&ref_e));
+        assert_eq!(fs, exp);
+    }
+    #[test]
+    fn test_fs_dirsize() {
+        let fs = Filesystem::new(EXAMPLE);
 
-        let ref_d = Rc::new(RefCell::new(Dir {
-            subdirs: BTreeMap::new(),
-            files: vec![
-                File::new(4060174),
-                File::new(8033020),
-                File::new(5626152),
-                File::new(7214296),
-            ],
-            partent: None,
-        }));
-
-        let ref_ex = Rc::new(RefCell::new(Dir {
-            subdirs: {
-                let mut subs = BTreeMap::new();
-                subs.insert("a".to_string(), Rc::clone(&ref_a));
-                subs.insert("d".to_string(), Rc::clone(&ref_d));
-                subs
-            },
-            files: vec![File::new(14848514), File::new(8504156)],
-            partent: None,
-        }));
-
-        (*ref_a).borrow_mut().partent = Some(Rc::clone(&ref_ex));
-        (*ref_d).borrow_mut().partent = Some(Rc::clone(&ref_ex));
-
-        assert_eq!(fs, ref_ex);
+        assert!(fs.get_folder_sizes().contains(&("a/e".to_string(), 584)));
+        assert!(fs
+            .get_folder_sizes()
+            .contains(&("d".to_string(), 4060174 + 8033020 + 5626152 + 7214296)));
     }
 }

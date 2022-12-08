@@ -19,7 +19,6 @@ fn check_visible(map: &Vec<Vec<u32>>) -> Vec<Vec<bool>> {
 
     // lr
     for row in 0..height {
-        println!("\n# row {:?}", row);
         set_by_sightline(&map, &mut vis, Iter2d::new((row, 0), (0, 1), (0, width)));
         set_by_sightline(
             &map,
@@ -29,7 +28,6 @@ fn check_visible(map: &Vec<Vec<u32>>) -> Vec<Vec<bool>> {
     }
     // ud
     for column in 0..width {
-        println!("\n# column {:?}", column);
         set_by_sightline(
             &map,
             &mut vis,
@@ -70,11 +68,17 @@ struct Iter2d {
     pos: (usize, usize),
     dir: (i32, i32),
     range: (usize, usize),
+    overflow: bool,
 }
 
 impl Iter2d {
     fn new(pos: (usize, usize), dir: (i32, i32), range: (usize, usize)) -> Self {
-        Self { pos, dir, range }
+        Self {
+            pos,
+            dir,
+            range,
+            overflow: false,
+        }
     }
 }
 
@@ -82,14 +86,18 @@ impl Iterator for Iter2d {
     type Item = (usize, usize);
 
     fn next(&mut self) -> Option<Self::Item> {
+        if self.overflow {
+            return None;
+        }
+
         let curr = self.pos;
         match add(self.pos.0, self.dir.0) {
             Some(v) => self.pos.0 = v,
-            None => return None,
+            None => self.overflow = true,
         }
         match add(self.pos.1, self.dir.1) {
             Some(v) => self.pos.1 = v,
-            None => return None,
+            None => self.overflow = true,
         }
 
         if std::cmp::min(self.pos.0, self.pos.1) < self.range.0
@@ -110,6 +118,34 @@ fn add(u: usize, i: i32) -> Option<usize> {
     }
 }
 
+fn score_view(map: &Vec<Vec<u32>>, i: usize, j: usize) -> u32 {
+    let height = map.len();
+    let width = map.first().unwrap().len();
+    let n = sightline_length(&map, &mut Iter2d::new((i, j), (-1, 0), (0, height)));
+    let e = sightline_length(&map, &mut Iter2d::new((i, j), (0, 1), (0, width)));
+    let s = sightline_length(&map, &mut Iter2d::new((i, j), (1, 0), (0, height)));
+    let w = sightline_length(&map, &mut Iter2d::new((i, j), (0, -1), (0, width)));
+
+    n * e * s * w
+}
+
+fn sightline_length(map: &Vec<Vec<u32>>, iter: &mut Iter2d) -> u32 {
+    let (start_i, start_j) = iter.next().unwrap();
+    let house_height = get_height(map, start_i, start_j);
+    println!("house_height {}", house_height);
+    let mut length = 0;
+    for (i, j) in iter {
+        let h = get_height(map, i, j);
+        println!("DEBUG {}/{}:{}", i, j, h);
+        length += 1;
+        if h >= house_height {
+            return length;
+        }
+    }
+
+    length
+}
+
 #[aoc(day8, part1)]
 fn part1(input: &str) -> usize {
     let map = parse(input);
@@ -125,7 +161,19 @@ fn part1(input: &str) -> usize {
 
 #[aoc(day8, part2)]
 fn part2(input: &str) -> u32 {
-    0
+    let map = parse(input);
+
+    let mut best = 0;
+
+    for i in 0..map.first().unwrap().len() {
+        for j in 0..map.len() {
+            let score = score_view(&map, i, j);
+            if score > best {
+                best = score;
+            }
+        }
+    }
+    best
 }
 
 fn print_debug(map: &Vec<Vec<u32>>, vis: &Vec<Vec<bool>>) {
@@ -158,7 +206,7 @@ mod test {
 
     #[test]
     fn part2_test() {
-        assert_eq!(part2(EXAMPLE), 157)
+        assert_eq!(part2(EXAMPLE), 8)
     }
 
     #[test]
@@ -190,5 +238,13 @@ mod test {
                 vec![true, true, true, true, true]
             ]
         )
+    }
+
+    #[test]
+    fn test_score() {
+        let map = parse(EXAMPLE);
+
+        assert_eq!(score_view(&map, 1, 2), 4);
+        assert_eq!(score_view(&map, 3, 2), 8);
     }
 }

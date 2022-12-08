@@ -63,7 +63,6 @@ fn get_height(map: &Vec<Vec<u32>>, h: usize, r: usize) -> u32 {
     *map.get(h).unwrap().get(r).unwrap()
 }
 fn set_vis(vis: &mut Vec<Vec<bool>>, h: usize, r: usize) {
-    println!(">>setting {}/{}", h, r);
     *vis.get_mut(h).unwrap().get_mut(r).unwrap() = true;
 }
 

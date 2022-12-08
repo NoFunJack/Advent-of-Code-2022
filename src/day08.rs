@@ -132,11 +132,9 @@ fn score_view(map: &Vec<Vec<u32>>, i: usize, j: usize) -> u32 {
 fn sightline_length(map: &Vec<Vec<u32>>, iter: &mut Iter2d) -> u32 {
     let (start_i, start_j) = iter.next().unwrap();
     let house_height = get_height(map, start_i, start_j);
-    println!("house_height {}", house_height);
     let mut length = 0;
     for (i, j) in iter {
         let h = get_height(map, i, j);
-        println!("DEBUG {}/{}:{}", i, j, h);
         length += 1;
         if h >= house_height {
             return length;

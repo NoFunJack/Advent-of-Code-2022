@@ -47,6 +47,16 @@ impl AddAssign for Point {
     }
 }
 
+impl std::ops::Add for Point {
+    type Output = Point;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        let x = self.0 + rhs.0;
+        let y = self.1 + rhs.1;
+        Point(x, y)
+    }
+}
+
 #[aoc_generator(day9)]
 fn read(input: &str) -> Vec<Move> {
     input
@@ -67,16 +77,14 @@ fn read(input: &str) -> Vec<Move> {
 }
 
 struct State {
-    h_pos: Point,
-    t_pos: Point,
+    links: Vec<Point>,
     visited: HashSet<Point>,
 }
 
 impl State {
-    fn new() -> Self {
+    fn new(size: usize) -> Self {
         Self {
-            h_pos: Point(0, 0),
-            t_pos: Point(0, 0),
+            links: vec![Point(0, 0); size + 1],
             visited: HashSet::new(),
         }
     }
@@ -90,48 +98,56 @@ impl State {
 
     // moves one step
     fn move_step(&mut self, dir: &Direction) {
-        self.h_pos += dir.get_tuple();
-        self.move_tail();
+        *self.links.get_mut(0).unwrap() += dir.get_tuple();
+
+        for i in 1..self.links.len() {
+            let pos = State::get_pos(self.links.get(i - 1).unwrap(), self.links.get(i).unwrap());
+            *self.links.get_mut(i).unwrap() = pos;
+        }
+
+        self.visited.insert(self.links.last().unwrap().clone());
+
         //println!("done step {:?} \n{}", dir, self);
     }
 
-    fn move_tail(&mut self) {
+    fn get_pos(h_pos: &Point, t_pos: &Point) -> Point {
+        let mut new_pos = t_pos.clone();
         // non diagonal
-        if self.h_pos.0 == self.t_pos.0 || self.t_pos.1 == self.h_pos.1 {
+        if h_pos.0 == t_pos.0 || t_pos.1 == h_pos.1 {
             // ud
-            match self.h_pos.0 - self.t_pos.0 {
-                2 => self.t_pos.0 += 1,
+            match h_pos.0 - t_pos.0 {
+                2 => new_pos.0 += 1,
                 -1..=1 => (),
-                -2 => self.t_pos.0 -= 1,
+                -2 => new_pos.0 -= 1,
                 _ => panic!("tail to far u/d"),
             }
 
             // lr
-            match self.h_pos.1 - self.t_pos.1 {
-                2 => self.t_pos.1 += 1,
+            match h_pos.1 - t_pos.1 {
+                2 => new_pos.1 += 1,
                 -1..=1 => (),
-                -2 => self.t_pos.1 -= 1,
+                -2 => new_pos.1 -= 1,
                 _ => panic!("tail to far l/r"),
             }
-        } else if (self.t_pos.0 - self.h_pos.0).abs() + (self.t_pos.1 - self.h_pos.1).abs() > 2 {
+        } else if (t_pos.0 - h_pos.0).abs() + (t_pos.1 - h_pos.1).abs() > 2 {
             // ud
-            match self.h_pos.0 - self.t_pos.0 {
-                1..=2 => self.t_pos.0 += 1,
+            match h_pos.0 - t_pos.0 {
+                1..=2 => new_pos.0 += 1,
                 0 => (),
-                -2..=-1 => self.t_pos.0 -= 1,
+                -2..=-1 => new_pos.0 -= 1,
                 _ => panic!("tail to far u/d"),
             }
 
             // lr
-            match self.h_pos.1 - self.t_pos.1 {
-                1..=2 => self.t_pos.1 += 1,
+            match h_pos.1 - t_pos.1 {
+                1..=2 => new_pos.1 += 1,
                 0 => (),
-                -2..=-1 => self.t_pos.1 -= 1,
+                -2..=-1 => new_pos.1 -= 1,
                 _ => panic!("tail to far l/r"),
             }
         }
 
-        self.visited.insert(self.t_pos.clone());
+        new_pos
     }
 }
 
@@ -139,7 +155,7 @@ impl std::fmt::Display for State {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let ub = min(
             *self.visited.iter().map(|Point(a, _)| a).min().unwrap_or(&0),
-            min(self.t_pos.0, self.h_pos.0),
+            *self.links.iter().map(|Point(a, _)| a).min().unwrap_or(&0),
         );
         let db = max(
             *self
@@ -148,11 +164,16 @@ impl std::fmt::Display for State {
                 .map(|Point(a, _)| a)
                 .max()
                 .unwrap_or(&std::i32::MAX),
-            max(self.t_pos.0, self.h_pos.0),
+            *self
+                .links
+                .iter()
+                .map(|Point(a, _)| a)
+                .max()
+                .unwrap_or(&std::i32::MAX),
         );
         let lb = min(
             *self.visited.iter().map(|Point(_, a)| a).min().unwrap_or(&0),
-            min(self.t_pos.1, self.h_pos.1),
+            *self.links.iter().map(|Point(_, a)| a).min().unwrap_or(&0),
         );
         let rb = max(
             *self
@@ -161,17 +182,24 @@ impl std::fmt::Display for State {
                 .map(|Point(_, a)| a)
                 .max()
                 .unwrap_or(&std::i32::MAX),
-            max(self.t_pos.1, self.h_pos.1),
+            *self
+                .links
+                .iter()
+                .map(|Point(_, a)| a)
+                .max()
+                .unwrap_or(&std::i32::MAX),
         );
 
         let mut chars: Vec<char> = Vec::new();
 
         for row in ub..=db {
             for p in lb..=rb {
-                if self.h_pos == Point(row, p) {
+                if *self.links.first().unwrap() == Point(row, p) {
                     chars.push('H');
-                } else if self.t_pos == Point(row, p) {
+                } else if *self.links.last().unwrap() == Point(row, p) {
                     chars.push('T');
+                } else if self.links.contains(&Point(row, p)) {
+                    chars.push('*');
                 } else if self.visited.contains(&Point(row, p)) {
                     chars.push('#');
                 } else {
@@ -187,14 +215,16 @@ impl std::fmt::Display for State {
 
 #[aoc(day9, part1)]
 fn part1(input: &[Move]) -> usize {
-    let mut s = State::new();
+    let mut s = State::new(1);
     input.iter().for_each(|m| s.do_move(m));
     s.visited.len()
 }
 
 #[aoc(day9, part2)]
-fn part2(input: &[Move]) -> u32 {
-    todo!()
+fn part2(input: &[Move]) -> usize {
+    let mut s = State::new(9);
+    input.iter().for_each(|m| s.do_move(m));
+    s.visited.len()
 }
 
 #[cfg(test)]
@@ -210,6 +240,15 @@ R 4
 D 1
 L 5
 R 2";
+
+    const EXAMPLE_STR_BIG: &str = "R 5
+U 8
+L 8
+D 3
+R 17
+D 10
+L 25
+U 20";
 
     fn load() -> Vec<Move> {
         vec![
@@ -236,6 +275,11 @@ R 2";
 
     #[test]
     fn part2_test() {
-        assert_eq!(part2(&load()[..]), 70)
+        assert_eq!(part2(&load()[..]), 1)
+    }
+
+    #[test]
+    fn part2_test_big() {
+        assert_eq!(part2(&read(EXAMPLE_STR_BIG)[..]), 36)
     }
 }

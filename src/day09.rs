@@ -229,7 +229,6 @@ fn part2(input: &[Move]) -> usize {
 
 #[cfg(test)]
 mod test {
-    use super::Direction::*;
     use super::*;
 
     const EXAMPLE_STR: &str = "R 4

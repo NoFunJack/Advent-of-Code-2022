@@ -106,7 +106,7 @@ fn part1(input: &str) -> usize {
 
     fs.get_folder_sizes()
         .iter()
-        .map(|(n, s)| s)
+        .map(|(_, s)| s)
         .filter(|s| **s < 100000)
         .sum()
 }

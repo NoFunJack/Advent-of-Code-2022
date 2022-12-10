@@ -1,9 +1,9 @@
-#[aoc(day5, part1)]
+#[aoc(day10, part1)]
 fn part1(input: &str) -> u32 {
     todo!()
 }
 
-#[aoc(day5, part2)]
+#[aoc(day10, part2)]
 fn part2(input: &str) -> u32 {
     todo!()
 }

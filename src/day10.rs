@@ -94,7 +94,7 @@ fn part2(input: &[Cmd]) -> String {
     for _line in 1..=6 {
         for col in 1..=40 {
             let x_at_cycle = cpu.history.iter().nth(cycle.try_into().unwrap()).unwrap();
-            println!("idx: {} x: {} scan: {}", cycle, x_at_cycle, col);
+            //println!("idx: {} x: {} scan: {}", cycle, x_at_cycle, col);
             if (x_at_cycle + 1 - col).abs() < 2
                 || (x_at_cycle, col) == (&0, 40)
                 || (x_at_cycle, col) == (&40, 0)
@@ -104,7 +104,7 @@ fn part2(input: &[Cmd]) -> String {
                 re.push('.')
             }
             cycle += 1;
-            print!("{}", re);
+            //print!("{}", re);
         }
         re.push('\n');
     }

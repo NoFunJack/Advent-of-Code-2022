@@ -6,15 +6,15 @@ fn read(input: &str) -> Vec<Monkey> {
 
     for block in mk_block_list {
         let mut lines = block.lines().skip(1);
+        let num_list_str = lines.next().unwrap().split(":").skip(1).next().unwrap();
+        let items: Vec<i32> = num_list_str
+            .split(",")
+            .map(|s| s.trim().parse::<i32>().unwrap())
+            .collect();
         // read items
         mk_list.push(Monkey {
-            items: {
-                let num_list_str = lines.next().unwrap().split(":").skip(1).next().unwrap();
-                num_list_str
-                    .split(",")
-                    .map(|s| s.trim().parse::<i32>().unwrap())
-                    .collect()
-            },
+            items: items.clone(),
+            smart_items: items.iter().map(|i| SmartItem::new(*i)).collect(),
             op: {
                 let mut op_str = lines
                     .next()
@@ -61,6 +61,7 @@ fn read(input: &str) -> Vec<Monkey> {
 #[derive(Debug, PartialEq)]
 struct Monkey {
     items: Vec<i32>,
+    smart_items: Vec<SmartItem>,
     op: Op,
     test_div: i32,
     true_idx: usize,
@@ -90,9 +91,31 @@ impl Monkey {
 
         flying
     }
+
+    fn throw_smart(&mut self) -> Vec<(SmartItem, usize)> {
+        let mut flying = Vec::new();
+        for old_item in &self.smart_items {
+            let mut item = (*old_item).clone();
+            item.ops.push(self.op.clone());
+
+            // println!("Check Div {} of{:?}", self.test_div, item);
+
+            if item.divisible_by(&self.test_div) {
+                flying.push((item, self.true_idx));
+            } else {
+                flying.push((item, self.false_idx));
+            }
+
+            self.inspections_done += 1;
+        }
+
+        self.smart_items = Vec::new();
+
+        flying
+    }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 struct Op {
     op: Operator,
     number: Option<i32>,
@@ -111,6 +134,30 @@ impl Op {
 struct FlyingItem {
     target: usize,
     worry: i32,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+struct SmartItem {
+    base: i32,
+    ops: Vec<Op>,
+}
+
+impl SmartItem {
+    fn new(base: i32) -> Self {
+        Self {
+            base,
+            ops: Vec::new(),
+        }
+    }
+
+    fn divisible_by(&self, div: &i32) -> bool {
+        let mut x = self.base;
+        for op in &self.ops {
+            x = op.apply(&x) % div;
+            //println!("after op {:?}: {}", op, x);
+        }
+        x % div == 0
+    }
 }
 
 impl Op {
@@ -136,7 +183,7 @@ impl Op {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 enum Operator {
     Mult,
     Plus,
@@ -149,14 +196,6 @@ fn part1(input: &str) -> usize {
 
     for _ in 0..20 {
         do_round(&mut mk_list);
-
-        println!(
-            "held items: {:#?}",
-            mk_list
-                .iter()
-                .map(|m| m.items.clone())
-                .collect::<Vec<Vec<i32>>>()
-        );
     }
 
     monkey_fun(&mk_list)
@@ -179,8 +218,32 @@ fn monkey_fun(mk_list: &[Monkey]) -> usize {
 }
 
 #[aoc(day11, part2)]
-fn part2(input: &str) -> u32 {
-    todo!()
+fn part2(input: &str) -> usize {
+    let mut mk_list = read(input);
+
+    for _ in 0..20 {
+        do_round_smart(&mut mk_list);
+        //println!("{:#?}", mk_list);
+    }
+
+    println!(
+        "{:#?}",
+        mk_list
+            .iter()
+            .map(|m| m.inspections_done)
+            .collect::<Vec<usize>>()
+    );
+
+    monkey_fun(&mk_list)
+}
+
+fn do_round_smart(mk_list: &mut [Monkey]) {
+    for i in 0..mk_list.len() {
+        let thrown_items: Vec<(SmartItem, usize)> = mk_list[i].throw_smart();
+        for (item, target) in thrown_items {
+            mk_list.get_mut(target).unwrap().smart_items.push(item);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -224,6 +287,7 @@ Monkey 3:
             ml.next(),
             Some(&Monkey {
                 items: vec![79, 98],
+                smart_items: vec![SmartItem::new(79), SmartItem::new(98)],
                 op: Op {
                     op: Mult,
                     number: Some(19),
@@ -239,6 +303,12 @@ Monkey 3:
             ml.next(),
             Some(&Monkey {
                 items: vec![54, 65, 75, 74],
+                smart_items: vec![
+                    SmartItem::new(54),
+                    SmartItem::new(65),
+                    SmartItem::new(75),
+                    SmartItem::new(74)
+                ],
                 op: Op {
                     op: Plus,
                     number: Some(6),
@@ -254,6 +324,7 @@ Monkey 3:
             ml.next(),
             Some(&Monkey {
                 items: vec![79, 60, 97],
+                smart_items: vec![SmartItem::new(79), SmartItem::new(60), SmartItem::new(97)],
                 op: Op {
                     op: Square,
                     number: None,
@@ -273,6 +344,6 @@ Monkey 3:
 
     #[test]
     fn part2_test() {
-        assert_eq!(part2(EXAMPLE), 70)
+        assert_eq!(part2(EXAMPLE), 2713310158)
     }
 }

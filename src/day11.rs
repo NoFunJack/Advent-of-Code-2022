@@ -302,6 +302,7 @@ Monkey 3:
     }
 
     #[test]
+    #[ignore = "slow (>15 ms)"]
     fn part2_test() {
         assert_eq!(part2(EXAMPLE), 2713310158)
     }

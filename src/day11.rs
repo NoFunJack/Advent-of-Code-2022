@@ -7,14 +7,13 @@ fn read(input: &str) -> Vec<Monkey> {
     for block in mk_block_list {
         let mut lines = block.lines().skip(1);
         let num_list_str = lines.next().unwrap().split(":").skip(1).next().unwrap();
-        let items: Vec<i32> = num_list_str
+        let items: Vec<i64> = num_list_str
             .split(",")
-            .map(|s| s.trim().parse::<i32>().unwrap())
+            .map(|s| s.trim().parse::<i64>().unwrap())
             .collect();
         // read items
         mk_list.push(Monkey {
             items: items.clone(),
-            smart_items: items.iter().map(|i| SmartItem::new(*i)).collect(),
             op: {
                 let mut op_str = lines
                     .next()
@@ -60,10 +59,9 @@ fn read(input: &str) -> Vec<Monkey> {
 
 #[derive(Debug, PartialEq)]
 struct Monkey {
-    items: Vec<i32>,
-    smart_items: Vec<SmartItem>,
+    items: Vec<i64>,
     op: Op,
-    test_div: i32,
+    test_div: i64,
     true_idx: usize,
     false_idx: usize,
     inspections_done: usize,
@@ -92,24 +90,24 @@ impl Monkey {
         flying
     }
 
-    fn throw_smart(&mut self) -> Vec<(SmartItem, usize)> {
+    fn throw_mod(&mut self, modo: i64) -> Vec<FlyingItem> {
         let mut flying = Vec::new();
-        for old_item in &self.smart_items {
-            let mut item = (*old_item).clone();
-            item.ops.push(self.op.clone());
-
-            // println!("Check Div {} of{:?}", self.test_div, item);
-
-            if item.divisible_by(&self.test_div) {
-                flying.push((item, self.true_idx));
-            } else {
-                flying.push((item, self.false_idx));
-            }
-
+        for item in &self.items {
+            let worry = self.op.apply(item) % modo;
+            flying.push(FlyingItem {
+                target: {
+                    if worry % self.test_div == 0 {
+                        self.true_idx
+                    } else {
+                        self.false_idx
+                    }
+                },
+                worry,
+            });
             self.inspections_done += 1;
         }
 
-        self.smart_items = Vec::new();
+        self.items = Vec::new();
 
         flying
     }
@@ -118,11 +116,11 @@ impl Monkey {
 #[derive(Debug, PartialEq, Clone)]
 struct Op {
     op: Operator,
-    number: Option<i32>,
+    number: Option<i64>,
 }
 
 impl Op {
-    fn apply(&self, x: &i32) -> i32 {
+    fn apply(&self, x: &i64) -> i64 {
         match self.op {
             Mult => x * self.number.unwrap(),
             Plus => x + self.number.unwrap(),
@@ -133,31 +131,7 @@ impl Op {
 
 struct FlyingItem {
     target: usize,
-    worry: i32,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-struct SmartItem {
-    base: i32,
-    ops: Vec<Op>,
-}
-
-impl SmartItem {
-    fn new(base: i32) -> Self {
-        Self {
-            base,
-            ops: Vec::new(),
-        }
-    }
-
-    fn divisible_by(&self, div: &i32) -> bool {
-        let mut x = self.base;
-        for op in &self.ops {
-            x = op.apply(&x) % div;
-            //println!("after op {:?}: {}", op, x);
-        }
-        x % div == 0
-    }
+    worry: i64,
 }
 
 impl Op {
@@ -221,27 +195,20 @@ fn monkey_fun(mk_list: &[Monkey]) -> usize {
 fn part2(input: &str) -> usize {
     let mut mk_list = read(input);
 
-    for _ in 0..20 {
-        do_round_smart(&mut mk_list);
-        //println!("{:#?}", mk_list);
-    }
+    let prime_prod: i64 = mk_list.iter().map(|m| m.test_div).product();
 
-    println!(
-        "{:#?}",
-        mk_list
-            .iter()
-            .map(|m| m.inspections_done)
-            .collect::<Vec<usize>>()
-    );
+    for _ in 0..10_000 {
+        do_round_smart(&mut mk_list, prime_prod);
+    }
 
     monkey_fun(&mk_list)
 }
 
-fn do_round_smart(mk_list: &mut [Monkey]) {
+fn do_round_smart(mk_list: &mut [Monkey], prime_prod: i64) {
     for i in 0..mk_list.len() {
-        let thrown_items: Vec<(SmartItem, usize)> = mk_list[i].throw_smart();
-        for (item, target) in thrown_items {
-            mk_list.get_mut(target).unwrap().smart_items.push(item);
+        let thrown_items: Vec<FlyingItem> = mk_list[i].throw_mod(prime_prod);
+        for item in thrown_items {
+            mk_list.get_mut(item.target).unwrap().items.push(item.worry);
         }
     }
 }
@@ -287,7 +254,6 @@ Monkey 3:
             ml.next(),
             Some(&Monkey {
                 items: vec![79, 98],
-                smart_items: vec![SmartItem::new(79), SmartItem::new(98)],
                 op: Op {
                     op: Mult,
                     number: Some(19),
@@ -303,12 +269,6 @@ Monkey 3:
             ml.next(),
             Some(&Monkey {
                 items: vec![54, 65, 75, 74],
-                smart_items: vec![
-                    SmartItem::new(54),
-                    SmartItem::new(65),
-                    SmartItem::new(75),
-                    SmartItem::new(74)
-                ],
                 op: Op {
                     op: Plus,
                     number: Some(6),
@@ -324,7 +284,6 @@ Monkey 3:
             ml.next(),
             Some(&Monkey {
                 items: vec![79, 60, 97],
-                smart_items: vec![SmartItem::new(79), SmartItem::new(60), SmartItem::new(97)],
                 op: Op {
                     op: Square,
                     number: None,

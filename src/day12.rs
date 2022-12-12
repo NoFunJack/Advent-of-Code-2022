@@ -45,10 +45,10 @@ impl Map {
     fn new(tiles: Vec<Vec<Tile>>) -> Self {
         Self { tiles }
     }
-    fn find_path(&self) -> Vec<Point> {
+    fn find_path(&self, start: Point) -> Option<Vec<Point>> {
         let mut min_steps = HashMap::new();
         let mut q = HashSet::new();
-        q.insert(vec![self.find_start()]);
+        q.insert(vec![start]);
 
         while !q.is_empty() {
             let path_ref = q
@@ -59,8 +59,8 @@ impl Map {
             let path = q.take(&path_ref).unwrap();
             let node = path.last().unwrap().clone();
             if self.get_tile(&node) == Some(End) {
-                println!("found path {:#?}", path);
-                return path;
+                //println!("found path {:#?}", path);
+                return Some(path);
             } else {
                 for next_pos in self.adj(&node) {
                     let new_cost = path.len() + 1 + self.get_tile(&next_pos).unwrap().height();
@@ -81,7 +81,7 @@ impl Map {
             }
         }
 
-        panic!("no path found")
+        None
     }
 
     fn find_start(&self) -> Point {
@@ -93,6 +93,18 @@ impl Map {
             }
         }
         panic!("No start found")
+    }
+
+    fn get_points_of_height(&self, height: usize) -> Vec<Point> {
+        let mut re = Vec::new();
+        for (x, row) in self.tiles.iter().enumerate() {
+            for (y, t) in row.iter().enumerate() {
+                if t.height() == height {
+                    re.push(Point(x.try_into().unwrap(), y.try_into().unwrap()));
+                }
+            }
+        }
+        re
     }
 
     fn adj(&self, pos: &Point) -> Vec<Point> {
@@ -129,12 +141,23 @@ impl Map {
 
 #[aoc(day12, part1)]
 fn part1(input: &[Vec<Tile>]) -> usize {
-    Map::new(input.to_vec()).find_path().len() - 1
+    let map = Map::new(input.to_vec());
+    map.find_path(map.find_start())
+        .expect("no path found")
+        .len()
+        - 1
 }
 
 #[aoc(day12, part2)]
-fn part2(input: &[Vec<Tile>]) -> u32 {
-    todo!()
+fn part2(input: &[Vec<Tile>]) -> usize {
+    let map = Map::new(input.to_vec());
+    map.get_points_of_height(0)
+        .iter()
+        .map(|start| map.find_path(start.clone()))
+        .filter_map(|path| path.map(|p| p.len()))
+        .min()
+        .unwrap()
+        - 1
 }
 
 #[cfg(test)]
@@ -167,6 +190,6 @@ abdefghi";
 
     #[test]
     fn part2_test() {
-        assert_eq!(part2(&read(EXAMPLE)[..]), 70)
+        assert_eq!(part2(&read(EXAMPLE)[..]), 29)
     }
 }

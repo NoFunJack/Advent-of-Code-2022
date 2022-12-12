@@ -38,7 +38,7 @@ impl Direction {
 }
 
 #[derive(Debug, Eq, Hash, PartialEq, Clone)]
-struct Point(i32, i32);
+pub struct Point(pub i32, pub i32);
 
 impl AddAssign for Point {
     fn add_assign(&mut self, rhs: Self) {

@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, iter::Peekable, str::Chars};
+use std::{cmp::Ordering, fmt::Display, iter::Peekable, str::Chars};
 
 use Paket::*;
 
@@ -63,6 +63,22 @@ enum ReaderState {
     InRoot,
 }
 
+impl Display for Paket {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            List(list) => write!(
+                f,
+                "[{}]",
+                list.iter()
+                    .map(|e| e.to_string())
+                    .collect::<Vec<String>>()
+                    .join(",")
+            ),
+            Value(v) => write!(f, "{}", v),
+        }
+    }
+}
+
 impl PartialOrd for Paket {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         if let (Value(left), Value(right)) = (self, other) {
@@ -85,7 +101,12 @@ impl PartialOrd for Paket {
 
                 // compare current
                 if l != r {
-                    return l.unwrap().partial_cmp(r.unwrap());
+                    let comp_result = l.unwrap().partial_cmp(r.unwrap()).unwrap();
+                    if let Ordering::Equal = comp_result {
+                        // continue compare
+                    } else {
+                        return Some(comp_result);
+                    }
                 }
             }
         } else {
@@ -157,6 +178,7 @@ fn part2(input: &str) -> usize {
 
     println!("{:?}", check_pos);
 
+    // 25200 is to high
     check_pos.iter().product()
 }
 
@@ -232,6 +254,11 @@ mod test {
         assert!(Paket::new("[1]") < Paket::new("[2]"));
         assert!(Paket::new("[0,5]") > Paket::new("[0,4]"));
         assert!(Paket::new("[5,3,1]") == Paket::new("[5,3,1]"));
+    }
+
+    #[test]
+    fn test_cmp_debug() {
+        assert!(Paket::new("[[2]]") < Paket::new("[[[2]],[10,[10,6,8],8,[8,0,10,2],10]]"));
     }
 
     #[test]

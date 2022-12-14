@@ -1,8 +1,8 @@
-use std::{iter::Peekable, str::Chars};
+use std::{cmp::Ordering, iter::Peekable, str::Chars};
 
 use Paket::*;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 enum Paket {
     List(Vec<Paket>),
     Value(usize),
@@ -100,6 +100,18 @@ impl PartialOrd for Paket {
     }
 }
 
+impl Eq for Paket {}
+
+impl Ord for Paket {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        if self == other {
+            Ordering::Equal
+        } else {
+            self.partial_cmp(other).unwrap()
+        }
+    }
+}
+
 #[aoc(day13, part1)]
 fn part1(input: &str) -> usize {
     input
@@ -117,8 +129,35 @@ fn part1(input: &str) -> usize {
 }
 
 #[aoc(day13, part2)]
-fn part2(input: &str) -> u32 {
-    todo!()
+fn part2(input: &str) -> usize {
+    let div1 = Paket::new("[[2]]");
+    let div2 = Paket::new("[[6]]");
+
+    let mut msg_list: Vec<Paket> = input
+        .split("\n\n")
+        .flat_map(|pair| pair.lines().map(|l| Paket::new(l)))
+        .collect();
+
+    msg_list.push(div1.clone());
+    msg_list.push(div2.clone());
+
+    msg_list.sort();
+
+    let check_pos: Vec<usize> = msg_list
+        .iter()
+        .enumerate()
+        .filter_map(|(i, paket)| {
+            if *paket == div1 || *paket == div2 {
+                Some(i + 1)
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    println!("{:?}", check_pos);
+
+    check_pos.iter().product()
 }
 
 #[cfg(test)]

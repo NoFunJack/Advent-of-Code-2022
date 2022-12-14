@@ -2,11 +2,6 @@ use std::{iter::Peekable, str::Chars};
 
 use Paket::*;
 
-struct Signal {
-    left: Paket,
-    right: Paket,
-}
-
 #[derive(Debug, PartialEq)]
 enum Paket {
     List(Vec<Paket>),
@@ -15,26 +10,21 @@ enum Paket {
 
 impl Paket {
     fn new(line: &str) -> Paket {
-        println!("building packet");
         let mut iter = line.chars().peekable();
-        Paket::builder(&mut iter)
+        Paket::builder(&mut iter, ReaderState::Init)
     }
 
-    fn builder(iter: &mut Peekable<Chars>) -> Paket {
-        println!(">>Next Builder");
+    fn builder(iter: &mut Peekable<Chars>, mut state: ReaderState) -> Paket {
         let mut root = Vec::new();
-        let mut state = ReaderState::Init;
 
         loop {
             if let Some(c) = iter.next() {
-                println!("reading: {} in state {:?}", c, state);
-                println!("Vec: {:?}", root);
                 match c {
                     '[' => match state {
                         ReaderState::Init => {
                             state = ReaderState::InRoot;
                         }
-                        ReaderState::InRoot => todo!(),
+                        ReaderState::InRoot => root.push(Paket::builder(iter, ReaderState::InRoot)),
                     },
                     ']' => match state {
                         ReaderState::Init => panic!(),
@@ -58,7 +48,6 @@ impl Paket {
             let mut rest_of_num = String::new();
             while iter.peek().map_or(false, |d| d.is_digit(10)) {
                 rest_of_num.push(iter.next().unwrap());
-                println!("{}", rest_of_num);
             }
             let re = format!("{}{}", c, rest_of_num);
             re
@@ -74,9 +63,57 @@ enum ReaderState {
     InRoot,
 }
 
+impl PartialOrd for Paket {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        if let (Value(left), Value(right)) = (self, other) {
+            return Some(left.cmp(right));
+        } else if let (List(left), List(right)) = (self, other) {
+            let mut l_iter = left.iter();
+            let mut r_iter = right.iter();
+            loop {
+                let l = l_iter.next();
+                let r = r_iter.next();
+
+                // check if one or both run out
+                if l.is_none() && r.is_none() {
+                    return Some(std::cmp::Ordering::Equal);
+                } else if l.is_some() && r.is_none() {
+                    return Some(std::cmp::Ordering::Greater);
+                } else if l.is_none() && r.is_some() {
+                    return Some(std::cmp::Ordering::Less);
+                }
+
+                // compare current
+                if l != r {
+                    return l.unwrap().partial_cmp(r.unwrap());
+                }
+            }
+        } else {
+            if let Value(v) = self {
+                return List(vec![Value(*v)]).partial_cmp(other);
+            } else if let Value(v) = other {
+                return self.partial_cmp(&List(vec![Value(*v)]));
+            }
+        }
+
+        todo!()
+    }
+}
+
 #[aoc(day13, part1)]
-fn part1(input: &str) -> u32 {
-    todo!()
+fn part1(input: &str) -> usize {
+    input
+        .split("\n\n")
+        .map(|pair| {
+            let mut lines = pair.lines();
+            (
+                Paket::new(lines.next().unwrap()),
+                Paket::new(lines.next().unwrap()),
+            )
+        })
+        .enumerate()
+        .filter_map(|(i, pair)| if pair.0 < pair.1 { Some(i + 1) } else { None })
+        .sum()
 }
 
 #[aoc(day13, part2)]
@@ -138,12 +175,45 @@ mod test {
     }
 
     #[test]
+    fn test_cmp_values() {
+        assert!(Paket::new("1") < Paket::new("2"));
+        assert!(Paket::new("5") > Paket::new("2"));
+        assert!(Paket::new("5") == Paket::new("5"));
+    }
+
+    #[test]
+    fn test_cmp_list_neq_len() {
+        assert!(Paket::new("[1]") < Paket::new("[1,2]"));
+        assert!(Paket::new("[0,5,1]") > Paket::new("[0,5]"));
+        assert!(Paket::new("[5,3,1]") == Paket::new("[5,3,1]"));
+    }
+
+    #[test]
+    fn test_cmp_list_eq_len() {
+        assert!(Paket::new("[1]") < Paket::new("[2]"));
+        assert!(Paket::new("[0,5]") > Paket::new("[0,4]"));
+        assert!(Paket::new("[5,3,1]") == Paket::new("[5,3,1]"));
+    }
+
+    #[test]
+    fn test_compare_list_to_val() {
+        assert_eq!(
+            Paket::new("3").partial_cmp(&Paket::new("[3]")),
+            Some(std::cmp::Ordering::Equal)
+        );
+        assert_eq!(
+            Paket::new("[3]").partial_cmp(&Paket::new("3")),
+            Some(std::cmp::Ordering::Equal)
+        );
+    }
+
+    #[test]
     fn part1_test() {
         assert_eq!(part1(EXAMPLE), 13)
     }
 
     #[test]
     fn part2_test() {
-        assert_eq!(part2(EXAMPLE), 70)
+        assert_eq!(part2(EXAMPLE), 140)
     }
 }

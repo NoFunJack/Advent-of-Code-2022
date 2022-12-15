@@ -2,43 +2,6 @@ use std::{collections::HashSet, fmt::Display, ops::RangeInclusive};
 
 use crate::day09::Point;
 
-fn read(input: &str) -> Scan {
-    let mut rocks = HashSet::new();
-
-    for line in input.lines() {
-        let mut coords = line.split(" -> ").map(|str| {
-            let mut nums = str.split(",").map(|s| s.parse().unwrap());
-            Point(nums.next().unwrap(), nums.next().unwrap())
-        });
-
-        let mut from = coords.next().expect("No start point");
-        let mut to_opt = coords.next();
-
-        while to_opt.is_some() {
-            let to = to_opt.unwrap();
-
-            if from.0 == to.0 {
-                for y in get_incr_range(from.1, to.1) {
-                    rocks.insert(Point(from.0, y));
-                }
-            } else if from.1 == to.1 {
-                for y in get_incr_range(from.0, to.0) {
-                    rocks.insert(Point(y, from.1));
-                }
-            } else {
-                panic!("Diagonal found");
-            }
-
-            from = to;
-            to_opt = coords.next();
-        }
-    }
-
-    println!("{:?}", rocks);
-
-    Scan { rocks }
-}
-
 fn get_incr_range(a: i32, b: i32) -> RangeInclusive<i32> {
     if a < b {
         a..=b
@@ -49,6 +12,45 @@ fn get_incr_range(a: i32, b: i32) -> RangeInclusive<i32> {
 
 struct Scan {
     rocks: HashSet<Point>,
+}
+
+impl Scan {
+    fn new(input: &str) -> Self {
+        let mut rocks = HashSet::new();
+
+        for line in input.lines() {
+            let mut coords = line.split(" -> ").map(|str| {
+                let mut nums = str.split(",").map(|s| s.parse().unwrap());
+                Point(nums.next().unwrap(), nums.next().unwrap())
+            });
+
+            let mut from = coords.next().expect("No start point");
+            let mut to_opt = coords.next();
+
+            while to_opt.is_some() {
+                let to = to_opt.unwrap();
+
+                if from.0 == to.0 {
+                    for y in get_incr_range(from.1, to.1) {
+                        rocks.insert(Point(from.0, y));
+                    }
+                } else if from.1 == to.1 {
+                    for y in get_incr_range(from.0, to.0) {
+                        rocks.insert(Point(y, from.1));
+                    }
+                } else {
+                    panic!("Diagonal found");
+                }
+
+                from = to;
+                to_opt = coords.next();
+            }
+        }
+
+        println!("{:?}", rocks);
+
+        Scan { rocks }
+    }
 }
 
 impl Display for Scan {
@@ -94,7 +96,7 @@ mod test {
     #[test]
     fn test_reader() {
         assert_eq!(
-            read(EXAMPLE).to_string(),
+            Scan::new(EXAMPLE).to_string(),
             "......+...
 ..........
 ..........

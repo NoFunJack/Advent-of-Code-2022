@@ -12,6 +12,7 @@ fn get_incr_range(a: i32, b: i32) -> RangeInclusive<i32> {
 
 struct Scan {
     rocks: HashSet<Point>,
+    sand: HashSet<Point>,
     lowest_rock: i32,
     used_sand: usize,
 }
@@ -50,14 +51,57 @@ impl Scan {
         }
 
         Scan {
-            lowest_rock: rocks.iter().map(|p| p.1).min().unwrap(),
+            lowest_rock: rocks.iter().map(|p| p.1).max().unwrap(),
             rocks,
             used_sand: 0,
+            sand: HashSet::new(),
         }
     }
 
     fn fill(&mut self) {
-        todo!()
+        while self.add_sand(false) {
+            self.used_sand += 1;
+        }
+    }
+
+    fn fill_with_floor(&mut self) {
+        while self.add_sand(true) {
+            self.used_sand += 1;
+            //println!("{}", self);
+        }
+    }
+    fn add_sand(&mut self, has_floor: bool) -> bool {
+        let start = Point(500, 0);
+        let mut sand_pos = start.clone();
+
+        loop {
+            let next_pos = vec![Point(0, 1), Point(-1, 1), Point(1, 1)]
+                .iter()
+                .map(|p| sand_pos.clone() + p.clone())
+                .filter(|p| p.1 < self.lowest_rock + 2)
+                .find(|p| !self.rocks.contains(p) && !self.sand.contains(p));
+
+            //            println!("from {:?} to {:?}", sand_pos, next_pos);
+
+            match next_pos {
+                Some(pos) => {
+                    if !has_floor && pos.1 > self.lowest_rock {
+                        return false;
+                    } else {
+                        sand_pos = pos;
+                    }
+                }
+                None => {
+                    if sand_pos == start {
+                        self.sand.insert(start);
+                        return false;
+                    } else {
+                        self.sand.insert(sand_pos);
+                        return true;
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -69,7 +113,9 @@ impl Display for Scan {
 
         for row in 0..=self.rocks.iter().map(|p| p.1).max().unwrap_or(0) {
             for pos in min_y..=max_y {
-                if row == 0 && pos == 500 {
+                if self.sand.contains(&Point(pos, row)) {
+                    re.push('o')
+                } else if row == 0 && pos == 500 {
                     re.push('+')
                 } else {
                     match self.rocks.contains(&Point(pos, row)) {
@@ -92,8 +138,10 @@ fn part1(input: &str) -> usize {
 }
 
 #[aoc(day14, part2)]
-fn part2(input: &str) -> u32 {
-    todo!()
+fn part2(input: &str) -> usize {
+    let mut wall = Scan::new(input);
+    wall.fill_with_floor();
+    wall.used_sand + 1
 }
 
 #[cfg(test)]
@@ -122,11 +170,11 @@ mod test {
 
     #[test]
     fn part1_test() {
-        assert_eq!(part1(EXAMPLE), 157)
+        assert_eq!(part1(EXAMPLE), 24)
     }
 
     #[test]
     fn part2_test() {
-        assert_eq!(part2(EXAMPLE), 70)
+        assert_eq!(part2(EXAMPLE), 93)
     }
 }

@@ -12,6 +12,8 @@ fn get_incr_range(a: i32, b: i32) -> RangeInclusive<i32> {
 
 struct Scan {
     rocks: HashSet<Point>,
+    lowest_rock: i32,
+    used_sand: usize,
 }
 
 impl Scan {
@@ -47,9 +49,15 @@ impl Scan {
             }
         }
 
-        println!("{:?}", rocks);
+        Scan {
+            lowest_rock: rocks.iter().map(|p| p.1).min().unwrap(),
+            rocks,
+            used_sand: 0,
+        }
+    }
 
-        Scan { rocks }
+    fn fill(&mut self) {
+        todo!()
     }
 }
 
@@ -77,8 +85,10 @@ impl Display for Scan {
 }
 
 #[aoc(day14, part1)]
-fn part1(input: &str) -> u32 {
-    todo!()
+fn part1(input: &str) -> usize {
+    let mut wall = Scan::new(input);
+    wall.fill();
+    wall.used_sand
 }
 
 #[aoc(day14, part2)]

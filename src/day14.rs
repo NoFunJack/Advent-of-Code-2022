@@ -1,4 +1,4 @@
-use std::{collections::HashSet, fmt::Display};
+use std::{collections::HashSet, fmt::Display, ops::RangeInclusive};
 
 use crate::day09::Point;
 
@@ -18,12 +18,12 @@ fn read(input: &str) -> Scan {
             let to = to_opt.unwrap();
 
             if from.0 == to.0 {
-                for y in from.1..=to.1 {
-                    rocks.insert(Point(y, from.0));
+                for y in get_incr_range(from.1, to.1) {
+                    rocks.insert(Point(from.0, y));
                 }
             } else if from.1 == to.1 {
-                for y in from.0..=to.0 {
-                    rocks.insert(Point(from.1, y));
+                for y in get_incr_range(from.0, to.0) {
+                    rocks.insert(Point(y, from.1));
                 }
             } else {
                 panic!("Diagonal found");
@@ -39,26 +39,38 @@ fn read(input: &str) -> Scan {
     Scan { rocks }
 }
 
+fn get_incr_range(a: i32, b: i32) -> RangeInclusive<i32> {
+    if a < b {
+        a..=b
+    } else {
+        b..=a
+    }
+}
+
 struct Scan {
     rocks: HashSet<Point>,
 }
 
 impl Display for Scan {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let min_y = self.rocks.iter().map(|p| p.1).min().unwrap_or(0);
-        let max_y = self.rocks.iter().map(|p| p.1).max().unwrap_or(0);
+        let min_y = self.rocks.iter().map(|p| p.0).min().unwrap_or(0);
+        let max_y = self.rocks.iter().map(|p| p.0).max().unwrap_or(0);
         let mut re = String::new();
 
-        for row in 0..=self.rocks.iter().map(|p| p.0).max().unwrap_or(0) {
+        for row in 0..=self.rocks.iter().map(|p| p.1).max().unwrap_or(0) {
             for pos in min_y..=max_y {
-                match self.rocks.contains(&Point(row, pos)) {
-                    true => re.push('#'),
-                    false => re.push('.'),
+                if row == 0 && pos == 500 {
+                    re.push('+')
+                } else {
+                    match self.rocks.contains(&Point(pos, row)) {
+                        true => re.push('#'),
+                        false => re.push('.'),
+                    }
                 }
             }
             re.push('\n');
         }
-        write!(f, "{}", re)
+        write!(f, "{}", re.trim_end())
     }
 }
 

@@ -43,6 +43,7 @@ pub struct Sensor {
 
 #[aoc(day15, part1)]
 fn part1(input: &[Sensor]) -> u32 {
+    println!("{:#?}", input);
     todo!()
 }
 

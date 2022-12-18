@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::day09::Point;
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -41,10 +43,45 @@ pub struct Sensor {
     closest_beacon: Point,
 }
 
+impl Sensor {
+    fn get_non_becon_spaces_on_line(&self, l_num: i32) -> HashSet<Point> {
+        let dist = (self.pos.1 - l_num).abs();
+        if dist > self.scan_range() {
+            return HashSet::new();
+        } else {
+            let lr = self.scan_range() - dist;
+            let mut re = HashSet::new();
+            re.insert(Point(self.pos.0, l_num));
+            for i in 1..=lr {
+                re.insert(Point(self.pos.0 - i, l_num));
+                re.insert(Point(self.pos.0 + i, l_num));
+            }
+            re.remove(&self.closest_beacon);
+            return re;
+        }
+    }
+
+    fn scan_range(&self) -> i32 {
+        self.pos.man_dist(&self.closest_beacon)
+    }
+}
+
+impl Point {
+    fn man_dist(&self, other: &Point) -> i32 {
+        (self.0 - other.0).abs() + (self.1 - other.1).abs()
+    }
+}
+
+fn get_non_becon_spaces(sensors: &[Sensor], l_num: i32) -> HashSet<Point> {
+    sensors
+        .iter()
+        .map(|s| s.get_non_becon_spaces_on_line(l_num))
+        .fold(HashSet::new(), |a, b| a.into_iter().chain(b).collect())
+}
+
 #[aoc(day15, part1)]
-fn part1(input: &[Sensor]) -> u32 {
-    println!("{:#?}", input);
-    todo!()
+fn part1(input: &[Sensor]) -> usize {
+    get_non_becon_spaces(input, 2000000).len()
 }
 
 #[aoc(day15, part2)]
@@ -94,8 +131,43 @@ Sensor at x=9, y=16: closest beacon is at x=10, y=16",
     }
 
     #[test]
+    fn test_nonb_empty() {
+        assert_eq!(get_non_becon_spaces(&Vec::new()[..], 0), HashSet::new());
+    }
+
+    #[test]
+    fn test_nonb_sensor() {
+        let s = Sensor {
+            pos: Point(0, 0),
+            closest_beacon: Point(5, 0),
+        };
+
+        assert_eq!(s.get_non_becon_spaces_on_line(6), HashSet::new());
+        let mut exp = HashSet::new();
+        exp.insert(Point(0, 5));
+        assert_eq!(s.get_non_becon_spaces_on_line(5), exp);
+        let mut exp = HashSet::new();
+        exp.insert(Point(0, 4));
+        exp.insert(Point(1, 4));
+        exp.insert(Point(-1, 4));
+        assert_eq!(s.get_non_becon_spaces_on_line(4), exp);
+        assert_eq!(s.get_non_becon_spaces_on_line(3).len(), 5);
+        assert_eq!(s.get_non_becon_spaces_on_line(2).len(), 7);
+        assert_eq!(s.get_non_becon_spaces_on_line(1).len(), 9);
+        // same pos as beacon
+        assert_eq!(s.get_non_becon_spaces_on_line(0).len(), 10);
+        assert_eq!(s.get_non_becon_spaces_on_line(-1).len(), 9);
+        assert_eq!(s.get_non_becon_spaces_on_line(-2).len(), 7);
+        assert_eq!(s.get_non_becon_spaces_on_line(-3).len(), 5);
+        assert_eq!(s.get_non_becon_spaces_on_line(-4).len(), 3);
+        assert_eq!(s.get_non_becon_spaces_on_line(-5).len(), 1);
+        assert_eq!(s.get_non_becon_spaces_on_line(-6).len(), 0);
+    }
+
+    #[test]
     fn part1_test() {
-        assert_eq!(part1(&read(EXAMPLE)[..]), 157)
+        let input = &read(EXAMPLE)[..];
+        assert_eq!(get_non_becon_spaces(&input, 10).len(), 26);
     }
 
     #[test]

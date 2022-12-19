@@ -96,13 +96,35 @@ fn part1(input: &[Sensor]) -> i32 {
     get_num_non_becon_spaces(input, 2000000)
 }
 
-fn find_hole_in_square(sensors: &[Sensor], square_size: i32) -> i32 {
-    todo!()
+fn find_hole_in_square(sensors: &[Sensor], square_size: i32) -> i64 {
+    for y in 0..=square_size {
+        let mut x = 0;
+        while x <= square_size {
+            if let Some(r) = sensors
+                .iter()
+                .filter_map(|s| s.get_scanned_on_line(y))
+                .find(|r| x >= r.0 && x <= r.1)
+            {
+                //println!("range {:?}", r);
+                // set to end of range
+                x = r.1 + 1;
+            } else {
+                //println!("Found P({},{})", x, y);
+                let bx: i64 = x.into();
+                let by: i64 = y.into();
+                return 4000000 * bx + by;
+            }
+        }
+    }
+    panic!("No hole found");
 }
 
 #[aoc(day15, part2)]
-fn part2(input: &[Sensor]) -> u32 {
-    todo!()
+fn part2(input: &[Sensor]) -> i64 {
+    // 106047218 to low
+    // 11246012445539524 to high
+    // 424188978047218 to high
+    find_hole_in_square(input, 4_000_000)
 }
 
 #[cfg(test)]
@@ -181,6 +203,7 @@ Sensor at x=9, y=16: closest beacon is at x=10, y=16",
 
     #[test]
     fn part2_test() {
+        let input = &read(EXAMPLE)[..];
         assert_eq!(find_hole_in_square(&input, 20), 56000011);
     }
 }

@@ -96,6 +96,10 @@ fn part1(input: &[Sensor]) -> i32 {
     get_num_non_becon_spaces(input, 2000000)
 }
 
+fn find_hole_in_square(sensors: &[Sensor], square_size: i32) -> i32 {
+    todo!()
+}
+
 #[aoc(day15, part2)]
 fn part2(input: &[Sensor]) -> u32 {
     todo!()
@@ -177,6 +181,6 @@ Sensor at x=9, y=16: closest beacon is at x=10, y=16",
 
     #[test]
     fn part2_test() {
-        assert_eq!(part2(&read(EXAMPLE)[..]), 70)
+        assert_eq!(find_hole_in_square(&input, 20), 56000011);
     }
 }

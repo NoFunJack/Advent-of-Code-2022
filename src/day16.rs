@@ -93,6 +93,20 @@ impl Plan {
             .sum()
     }
 
+    fn potential(&self, map: &Map) -> usize {
+        let used_steps = self.steps.len();
+
+        let pot: usize = map
+            .valves
+            .iter()
+            .filter(|(_, v)| v.rate > 0)
+            .filter(|(id, _)| self.is_open(&id))
+            .map(|(_, v)| v.rate * (30 - used_steps))
+            .sum();
+
+        pot + self.get_total_released(map)
+    }
+
     fn is_open(&self, v_id: &ValveId) -> bool {
         self.steps.contains(&Open(v_id.clone()))
     }
@@ -102,45 +116,60 @@ impl Plan {
         re.steps.push(step);
         re
     }
+
+    fn get_next_steps(&self, map: &Map) -> Vec<Step> {
+        let curr_pos = &self.curr_pos();
+        let current_valve = &map.valves.get(&curr_pos).unwrap();
+
+        let mut re = Vec::new();
+        // try to open valve
+        if current_valve.rate > 0 && !self.is_open(&curr_pos) {
+            re.push(Open(curr_pos.clone()))
+        }
+
+        // continue in cave
+        for next_path in &current_valve.paths_to {
+            re.push(GoTo(next_path.clone()));
+        }
+        re
+    }
+
+    fn curr_pos(&self) -> ValveId {
+        if self.steps.is_empty() {
+            return ValveId::new("AA");
+        }
+
+        match self.steps.last().unwrap() {
+            GoTo(id) => id.clone(),
+            Open(id) => id.clone(),
+        }
+    }
 }
 
 fn find_best_plan(map: &Map) -> Plan {
-    find_best_plan_int(map, Plan::new(), &ValveId::new("AA"))
-}
+    let mut pot_plans = vec![Plan::new()];
 
-fn find_best_plan_int(map: &Map, plan: Plan, current_pos: &ValveId) -> Plan {
-    println!("{:?}", plan);
-    // ancor
-    if plan.steps.len() >= 30 {
-        return plan;
-    }
-    let current_valve = &map.valves.get(&current_pos.clone()).unwrap();
-    let mut plans_from_here = Vec::new();
-
-    // try to open valve
-    if current_valve.rate > 0 && !plan.is_open(&current_pos) {
-        let p = plan.build_plan_with_step(Open(current_pos.clone()));
-        plans_from_here.push(find_best_plan_int(map, p, current_pos))
+    for _ in 0..3 {
+        let mut next_plans = Vec::new();
+        for plan in &pot_plans {
+            for step in plan.get_next_steps(map) {
+                next_plans.push(plan.build_plan_with_step(step));
+            }
+        }
+        pot_plans = next_plans;
     }
 
-    // continue in cave
-    for next_path in &current_valve.paths_to {
-        let p = plan.build_plan_with_step(GoTo(next_path.clone()));
-        plans_from_here.push(find_best_plan_int(map, p, &next_path));
-    }
-
-    plans_from_here
-        .iter()
-        .max_by_key(|p| p.get_total_released(map))
-        .expect("reached a dead end")
-        .clone()
+    pot_plans
+        .into_iter()
+        .max_by_key(|p| p.get_total_released(&map))
+        .unwrap()
 }
 
 #[aoc(day16, part1)]
 fn part1(input: &str) -> usize {
     let map = Map::new(input);
     let best = find_best_plan(&map);
-    println!("### BEST: {:?}", best);
+    println!("### BEST: {:#?}", best);
     best.get_total_released(&map)
 }
 

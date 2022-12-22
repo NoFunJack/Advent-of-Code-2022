@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-#[derive(Hash, Eq, PartialEq, Debug)]
+use Step::*;
+
+#[derive(Hash, Eq, PartialEq, Debug, Clone)]
 struct ValveId([char; 2]);
 
 impl ValveId {
@@ -60,18 +62,86 @@ impl Valve {
     }
 }
 
+#[derive(Clone, Debug)]
 struct Plan {
-    steps: [Option<Step>; 30],
+    steps: Vec<Step>,
 }
 
+#[derive(Eq, PartialEq, Clone, Debug)]
 enum Step {
     GoTo(ValveId),
     Open(ValveId),
 }
 
+impl Plan {
+    fn new() -> Self {
+        Self { steps: Vec::new() }
+    }
+
+    fn get_total_released(&self, map: &Map) -> usize {
+        self.steps
+            .iter()
+            .enumerate()
+            .map(|(i, step)| {
+                if let Open(v_id) = step {
+                    let rate = map.valves.get(&v_id).unwrap().rate;
+                    rate * (30 - i)
+                } else {
+                    0
+                }
+            })
+            .sum()
+    }
+
+    fn is_open(&self, v_id: &ValveId) -> bool {
+        self.steps.contains(&Open(v_id.clone()))
+    }
+
+    fn build_plan_with_step(&self, step: Step) -> Plan {
+        let mut re = (*self).clone();
+        re.steps.push(step);
+        re
+    }
+}
+
+fn find_best_plan(map: &Map) -> Plan {
+    find_best_plan_int(map, Plan::new(), &ValveId::new("AA"))
+}
+
+fn find_best_plan_int(map: &Map, plan: Plan, current_pos: &ValveId) -> Plan {
+    println!("{:?}", plan);
+    // ancor
+    if plan.steps.len() >= 30 {
+        return plan;
+    }
+    let current_valve = &map.valves.get(&current_pos.clone()).unwrap();
+    let mut plans_from_here = Vec::new();
+
+    // try to open valve
+    if current_valve.rate > 0 && !plan.is_open(&current_pos) {
+        let p = plan.build_plan_with_step(Open(current_pos.clone()));
+        plans_from_here.push(find_best_plan_int(map, p, current_pos))
+    }
+
+    // continue in cave
+    for next_path in &current_valve.paths_to {
+        let p = plan.build_plan_with_step(GoTo(next_path.clone()));
+        plans_from_here.push(find_best_plan_int(map, p, &next_path));
+    }
+
+    plans_from_here
+        .iter()
+        .max_by_key(|p| p.get_total_released(map))
+        .expect("reached a dead end")
+        .clone()
+}
+
 #[aoc(day16, part1)]
-fn part1(input: &str) -> u32 {
-    todo!()
+fn part1(input: &str) -> usize {
+    let map = Map::new(input);
+    let best = find_best_plan(&map);
+    println!("### BEST: {:?}", best);
+    best.get_total_released(&map)
 }
 
 #[aoc(day16, part2)]

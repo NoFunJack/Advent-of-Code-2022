@@ -16,6 +16,11 @@ impl ValveId {
         ValveId([chars.next().unwrap(), chars.next().unwrap()])
     }
 }
+impl std::fmt::Display for ValveId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({}{})", self.0[0], self.0[1])
+    }
+}
 
 struct Map {
     valves: HashMap<ValveId, Valve>,
@@ -85,7 +90,7 @@ impl Plan {
             .map(|(i, step)| {
                 if let Open(v_id) = step {
                     let rate = map.valves.get(&v_id).unwrap().rate;
-                    rate * (30 - i)
+                    rate * (29 - i)
                 } else {
                     0
                 }
@@ -146,17 +151,47 @@ impl Plan {
     }
 }
 
+impl std::fmt::Display for Plan {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut plan_str = Vec::new();
+
+        for step in &self.steps {
+            match step {
+                GoTo(id) => plan_str.push(format!(">{}", id)),
+                Open(id) => plan_str.push(format!("x{}", id)),
+            }
+        }
+
+        write!(f, "[{}]", &plan_str.join(","))
+    }
+}
+
 fn find_best_plan(map: &Map) -> Plan {
     let mut pot_plans = vec![Plan::new()];
 
-    for _ in 0..3 {
+    for _ in 0..30 {
         let mut next_plans = Vec::new();
+        // all plans take one step
         for plan in &pot_plans {
             for step in plan.get_next_steps(map) {
                 next_plans.push(plan.build_plan_with_step(step));
             }
         }
-        pot_plans = next_plans;
+
+        // only take the best at each position
+        let mut next_best_plans = Vec::new();
+        for v_id in map.valves.keys() {
+            let best_plan = next_plans
+                .iter()
+                .filter(|p| p.curr_pos() == *v_id)
+                .max_by_key(|p| p.get_total_released(map));
+
+            if let Some(p) = best_plan {
+                next_best_plans.push(p.clone());
+            }
+        }
+
+        pot_plans = next_best_plans;
     }
 
     pot_plans
@@ -169,7 +204,12 @@ fn find_best_plan(map: &Map) -> Plan {
 fn part1(input: &str) -> usize {
     let map = Map::new(input);
     let best = find_best_plan(&map);
-    println!("### BEST: {:#?}", best);
+    best.steps
+        .iter()
+        .enumerate()
+        .for_each(|(i, s)| println!("{}:\t{:?}", i, s));
+    println!("### BEST: {}", best);
+    // 1488 to low
     best.get_total_released(&map)
 }
 

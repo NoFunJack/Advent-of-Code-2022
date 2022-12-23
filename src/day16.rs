@@ -178,15 +178,22 @@ fn find_best_plan(map: &Map) -> Plan {
             }
         }
 
-        // only take the best at each position
+        // only take the best paths at each position
         let mut next_best_plans = Vec::new();
         for v_id in map.valves.keys() {
-            let best_plan = next_plans
+            let best_plan_val = next_plans
                 .iter()
                 .filter(|p| p.curr_pos() == *v_id)
-                .max_by_key(|p| p.get_total_released(map));
+                .map(|p| p.get_total_released(map))
+                .max();
 
-            if let Some(p) = best_plan {
+            if let Some(v) = best_plan_val {
+                next_plans.append(
+                    next_plans
+                        .iter()
+                        .filter(|p| p.get_total_released(map) == best_plan_val)
+                        .collect(),
+                );
                 next_best_plans.push(p.clone());
             }
         }

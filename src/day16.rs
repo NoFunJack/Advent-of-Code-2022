@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{BTreeSet, HashMap, HashSet},
     rc::Rc,
 };
 
@@ -152,34 +152,41 @@ fn find_best_plan(map: &Rc<Map>) -> Plan {
         // only take the best paths at each position
         let mut next_best_plans = Vec::new();
         for v_id in map.valves.keys() {
-            let best_plan_val = next_plans
+            let plan_with_this_pos = next_plans
                 .iter()
                 .filter(|p| p.pos == *v_id)
-                .map(|p| p.relased)
-                .max();
+                .cloned()
+                .collect::<Vec<Plan>>();
 
-            if let Some(v) = best_plan_val {
-                next_plans
-                    .iter()
-                    .filter(|p| p.pos == *v_id)
-                    .filter(|p| p.relased == v)
-                    .cloned()
-                    .for_each(|p| next_best_plans.push(p));
+            let mut checked_states = Vec::new();
+            for plan in &plan_with_this_pos {
+                if !checked_states.contains(&plan.open_valves) {
+                    next_best_plans.push(
+                        plan_with_this_pos
+                            .iter()
+                            .filter(|p| p.open_valves == plan.open_valves)
+                            .max_by_key(|p| p.relased)
+                            .cloned()
+                            .unwrap(),
+                    );
+
+                    checked_states.push(plan.open_valves.clone());
+                }
             }
         }
 
-        next_plans.iter().filter(|p| p.relased > 0).for_each(|p| {
-            println!(
-                "[{}/{}]\t{:?}",
-                p.relased,
-                p.pos,
-                p.open_valves
-                    .iter()
-                    .map(|v| v.to_string())
-                    .collect::<Vec<String>>()
-                    .join(",")
-            )
-        });
+        //  next_plans.iter().filter(|p| p.relased > 0).for_each(|p| {
+        //      println!(
+        //          "[{}/{}]\t{:?}",
+        //          p.relased,
+        //          p.pos,
+        //          p.open_valves
+        //              .iter()
+        //              .map(|v| v.to_string())
+        //              .collect::<Vec<String>>()
+        //              .join(",")
+        //      )
+        //  });
 
         pot_plans = next_best_plans;
     }

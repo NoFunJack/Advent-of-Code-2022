@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeSet, HashMap, HashSet},
+    collections::{HashMap, HashSet},
     rc::Rc,
 };
 
@@ -141,17 +141,17 @@ impl Plan {
     }
 }
 
-fn find_best_plan(map: &Rc<Map>) -> Plan {
+fn find_best_plan(map: &Rc<Map>, max_steps: usize) -> Plan {
     let mut pot_plans = vec![Plan::new(&Rc::clone(&map))];
     let mut most_released = 0;
 
-    for i in 0..30 {
+    for i in 0..max_steps {
         let mut next_plans = Vec::new();
         // all plans take one step
         for plan in &pot_plans {
             for step in plan.get_next_steps() {
                 let plan_plus_step = plan.build_plan_with_step(step);
-                if plan_plus_step.upper_relase(30 - 1 - i) > most_released {
+                if plan_plus_step.upper_relase(max_steps - 1 - i) > most_released {
                     if most_released <= plan_plus_step.relased {
                         most_released = plan_plus_step.relased;
                     }
@@ -210,7 +210,7 @@ fn find_best_plan(map: &Rc<Map>) -> Plan {
 #[aoc(day16, part1)]
 fn part1(input: &str) -> usize {
     let map = Map::new(input);
-    let best = find_best_plan(&Rc::new(map));
+    let best = find_best_plan(&Rc::new(map), 30);
     // 1488 to low
     best.relased
 }

@@ -1,4 +1,7 @@
-use std::collections::HashMap;
+use std::{
+    collections::{HashMap, HashSet},
+    rc::Rc,
+};
 
 use Step::*;
 
@@ -22,6 +25,7 @@ impl std::fmt::Display for ValveId {
     }
 }
 
+#[derive(Debug)]
 struct Map {
     valves: HashMap<ValveId, Valve>,
 }
@@ -69,7 +73,10 @@ impl Valve {
 
 #[derive(Clone, Debug)]
 struct Plan {
-    steps: Vec<Step>,
+    map: Rc<Map>,
+    pos: ValveId,
+    open_valves: HashSet<ValveId>,
+    relased: usize,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
@@ -79,52 +86,41 @@ enum Step {
 }
 
 impl Plan {
-    fn new() -> Self {
-        Self { steps: Vec::new() }
-    }
-
-    fn get_total_released(&self, map: &Map) -> usize {
-        self.steps
-            .iter()
-            .enumerate()
-            .map(|(i, step)| {
-                if let Open(v_id) = step {
-                    let rate = map.valves.get(&v_id).unwrap().rate;
-                    rate * (29 - i)
-                } else {
-                    0
-                }
-            })
-            .sum()
-    }
-
-    fn potential(&self, map: &Map) -> usize {
-        let used_steps = self.steps.len();
-
-        let pot: usize = map
-            .valves
-            .iter()
-            .filter(|(_, v)| v.rate > 0)
-            .filter(|(id, _)| self.is_open(&id))
-            .map(|(_, v)| v.rate * (30 - used_steps))
-            .sum();
-
-        pot + self.get_total_released(map)
+    fn new(map: &Rc<Map>) -> Self {
+        Self {
+            map: Rc::clone(map),
+            pos: ValveId::new("AA"),
+            open_valves: HashSet::new(),
+            relased: 0,
+        }
     }
 
     fn is_open(&self, v_id: &ValveId) -> bool {
-        self.steps.contains(&Open(v_id.clone()))
+        self.open_valves.contains(&v_id)
     }
 
     fn build_plan_with_step(&self, step: Step) -> Plan {
         let mut re = (*self).clone();
-        re.steps.push(step);
+        re.relase_one_min();
+        match step {
+            GoTo(id) => re.pos = id.clone(),
+            Open(id) => {
+                re.open_valves.insert(id.clone());
+            }
+        };
         re
     }
 
-    fn get_next_steps(&self, map: &Map) -> Vec<Step> {
-        let curr_pos = &self.curr_pos();
-        let current_valve = &map.valves.get(&curr_pos).unwrap();
+    fn relase_one_min(&mut self) {
+        for id in &self.open_valves {
+            let rate = self.map.valves.get(&id).unwrap().rate;
+            self.relased += rate;
+        }
+    }
+
+    fn get_next_steps(&self) -> Vec<Step> {
+        let curr_pos = self.pos.clone();
+        let current_valve = self.map.valves.get(&curr_pos).unwrap();
 
         let mut re = Vec::new();
         // try to open valve
@@ -138,86 +134,65 @@ impl Plan {
         }
         re
     }
-
-    fn curr_pos(&self) -> ValveId {
-        if self.steps.is_empty() {
-            return ValveId::new("AA");
-        }
-
-        match self.steps.last().unwrap() {
-            GoTo(id) => id.clone(),
-            Open(id) => id.clone(),
-        }
-    }
 }
 
-impl std::fmt::Display for Plan {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut plan_str = Vec::new();
+fn find_best_plan(map: &Rc<Map>) -> Plan {
+    let mut pot_plans = vec![Plan::new(&Rc::clone(&map))];
 
-        for step in &self.steps {
-            match step {
-                GoTo(id) => plan_str.push(format!(">{}", id)),
-                Open(id) => plan_str.push(format!("x{}", id)),
-            }
-        }
-
-        write!(f, "[{}]", &plan_str.join(","))
-    }
-}
-
-fn find_best_plan(map: &Map) -> Plan {
-    let mut pot_plans = vec![Plan::new()];
-
-    for _ in 0..30 {
+    for i in 0..30 {
         let mut next_plans = Vec::new();
         // all plans take one step
         for plan in &pot_plans {
-            for step in plan.get_next_steps(map) {
+            for step in plan.get_next_steps() {
                 next_plans.push(plan.build_plan_with_step(step));
             }
         }
+        println!("\nstep {},plans {}", i, next_plans.len());
 
         // only take the best paths at each position
         let mut next_best_plans = Vec::new();
         for v_id in map.valves.keys() {
             let best_plan_val = next_plans
                 .iter()
-                .filter(|p| p.curr_pos() == *v_id)
-                .map(|p| p.get_total_released(map))
+                .filter(|p| p.pos == *v_id)
+                .map(|p| p.relased)
                 .max();
 
             if let Some(v) = best_plan_val {
-                next_plans.append(
-                    next_plans
-                        .iter()
-                        .filter(|p| p.get_total_released(map) == best_plan_val)
-                        .collect(),
-                );
-                next_best_plans.push(p.clone());
+                next_plans
+                    .iter()
+                    .filter(|p| p.pos == *v_id)
+                    .filter(|p| p.relased == v)
+                    .cloned()
+                    .for_each(|p| next_best_plans.push(p));
             }
         }
+
+        next_plans.iter().filter(|p| p.relased > 0).for_each(|p| {
+            println!(
+                "[{}/{}]\t{:?}",
+                p.relased,
+                p.pos,
+                p.open_valves
+                    .iter()
+                    .map(|v| v.to_string())
+                    .collect::<Vec<String>>()
+                    .join(",")
+            )
+        });
 
         pot_plans = next_best_plans;
     }
 
-    pot_plans
-        .into_iter()
-        .max_by_key(|p| p.get_total_released(&map))
-        .unwrap()
+    pot_plans.into_iter().max_by_key(|p| p.relased).unwrap()
 }
 
 #[aoc(day16, part1)]
 fn part1(input: &str) -> usize {
     let map = Map::new(input);
-    let best = find_best_plan(&map);
-    best.steps
-        .iter()
-        .enumerate()
-        .for_each(|(i, s)| println!("{}:\t{:?}", i, s));
-    println!("### BEST: {}", best);
+    let best = find_best_plan(&Rc::new(map));
     // 1488 to low
-    best.get_total_released(&map)
+    best.relased
 }
 
 #[aoc(day16, part2)]

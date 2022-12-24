@@ -118,6 +118,11 @@ impl Plan {
         }
     }
 
+    fn upper_relase(&self, ticks: usize) -> usize {
+        let max_possible: usize = self.map.valves.values().map(|v| v.rate).sum::<usize>() * ticks;
+        max_possible + self.relased
+    }
+
     fn get_next_steps(&self) -> Vec<Step> {
         let curr_pos = self.pos.clone();
         let current_valve = self.map.valves.get(&curr_pos).unwrap();
@@ -138,16 +143,24 @@ impl Plan {
 
 fn find_best_plan(map: &Rc<Map>) -> Plan {
     let mut pot_plans = vec![Plan::new(&Rc::clone(&map))];
+    let mut most_released = 0;
 
     for i in 0..30 {
         let mut next_plans = Vec::new();
         // all plans take one step
         for plan in &pot_plans {
             for step in plan.get_next_steps() {
-                next_plans.push(plan.build_plan_with_step(step));
+                let plan_plus_step = plan.build_plan_with_step(step);
+                if plan_plus_step.upper_relase(30 - 1 - i) > most_released {
+                    if most_released <= plan_plus_step.relased {
+                        most_released = plan_plus_step.relased;
+                    }
+
+                    next_plans.push(plan_plus_step);
+                }
             }
         }
-        println!("\nstep {},plans {}", i, next_plans.len());
+        println!("\nstep {},plans {}", i + 1, next_plans.len());
 
         // only take the best paths at each position
         let mut next_best_plans = Vec::new();

@@ -257,6 +257,7 @@ Valve JJ has flow rate=21; tunnel leads to valve II";
         assert_eq!(part1(EXAMPLE), 1651)
     }
 
+    #[ignore = "Todo"]
     #[test]
     fn part2_test() {
         assert_eq!(part2(EXAMPLE), 70)
